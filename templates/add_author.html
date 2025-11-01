@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- Add Author page for BookAlchemy: allows adding new authors via form -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Add Author — BookAlchemy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body class="theme-dark">
+    <header>
+      <a href="{{ url_for('home') }}" class="logo">BookAlchemy</a>
+    </header>
+
+    <div class="container">
+      <div class="nav">
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('add_book') }}">Add Book</a>
+      </div>
+
+      <h1 class="center">Add Author</h1>
+
+      <!-- Flash message display -->
+      {% if message %}
+      <div class="flash-messages">
+        <div class="flash flash-success">{{ message }}</div>
+      </div>
+      {% endif %}
+
+      <!-- Author submission form -->
+      <form method="post" class="card add-author-page">
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" required placeholder="e.g. Stephen King">
+
+        <label for="birth_date">Birth Date</label>
+        <input id="birth_date" name="birth_date" type="text" placeholder="e.g. 1947-09-21">
+
+        <label for="date_of_death">Date of Death</label>
+        <input id="date_of_death" name="date_of_death" type="text" placeholder="e.g. 2011-04-05">
+
+        <div class="center mt-4">
+          <button type="submit" class="btn btn-primary btn-pill">Save Author</button>
+        </div>
+      </form>
+    </div>
+  </body>
+</html>

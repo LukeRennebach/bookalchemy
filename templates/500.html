@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Server Error — BookAlchemy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body class="theme-dark">
+    <header>
+      <a href="{{ url_for('home') }}" class="logo">BookAlchemy</a>
+    </header>
+
+    <div class="container">
+      <div class="card" style="text-align:center; padding: 40px 24px;">
+        <h1>500</h1>
+        <h2>Something went wrong</h2>
+        <p>It seems our library shelves got a bit tangled. Please try again later.</p>
+        <div class="action-buttons" style="margin-top: 16px;">
+          <a href="{{ url_for('home') }}" class="btn-action">Return to Library</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

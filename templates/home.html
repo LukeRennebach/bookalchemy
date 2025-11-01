@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Home page for BookAlchemy: displays the library grid, search form, and flash messages -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Library</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body class="theme-dark">
+    <header>
+      <a href="{{ url_for('home') }}" class="logo">BookAlchemy</a>
+    </header>
+
+    <div class="container center-flex">
+      <div class="nav">
+        <a href="{{ url_for('add_author') }}">Add Author</a>
+        <a href="{{ url_for('add_book') }}">Add Book</a>
+      </div>
+
+      <h1 class="center">Library</h1>
+
+      <div class="flash-messages">
+        {% with msgs = get_flashed_messages() %}
+          {% if msgs %}
+            <div class="flash flash-success">{{ msgs[0] }}</div>
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      <form method="get" action="{{ url_for('home') }}" class="search-form card">
+        <input type="text" name="q" placeholder="Search by title…" value="{{ q|default('') }}">
+        <button type="submit" class="search-btn">Search</button>
+        {% if q|default('') %}
+          <small>Showing results for “{{ q }}”</small>
+        {% endif %}
+      </form>
+
+      {% if no_results|default(false) %}
+        <p class="center">No books match your search.</p>
+      {% endif %}
+
+      <div class="book-grid">
+        {% for b in books %}
+          <div class="book-card">
+            <h3>{{ b.title }}</h3>
+            {% if b.author %}<p>{{ b.author.name }}</p>{% endif %}
+            <form method="post" action="{{ url_for('delete_book', book_id=b.id) }}">
+              <button type="submit" class="delete-btn">Delete</button>
+            </form>
+          </div>
+        {% else %}
+          <p class="center">No books yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </body>
+</html>
