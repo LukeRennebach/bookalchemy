@@ -1,8 +1,10 @@
 """Flask entrypoint for the BookAlchemy app: routes, config and CRUD handlers."""
 
 import os
+from datetime import date, datetime
 
 from flask import Flask, render_template, request, redirect, url_for, flash
+from sqlalchemy import func
 from data_models import db, Author, Book
 
 app = Flask(__name__)
@@ -19,20 +21,56 @@ def add_author():
     message = None
     if request.method == "POST":
         name = request.form.get("name", "").strip()
-        birth_date = request.form.get("birth_date", "").strip()
-        date_of_death = request.form.get("date_of_death", "").strip()
+        birth_date_str = request.form.get("birth_date", "").strip()
+        date_of_death_str = request.form.get("date_of_death", "").strip()
 
+        errors = []
         if not name:
-            message = "Name is required."
+            errors.append("Name is required.")
+
+        # Parse dates if provided (expecting YYYY-MM-DD)
+        birth_dt = None
+        death_dt = None
+        try:
+            if birth_date_str:
+                birth_dt = datetime.strptime(birth_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            errors.append("Birth date must be YYYY-MM-DD.")
+        try:
+            if date_of_death_str:
+                death_dt = datetime.strptime(date_of_death_str, "%Y-%m-%d").date()
+        except ValueError:
+            errors.append("Date of death must be YYYY-MM-DD.")
+
+        today = date.today()
+        if birth_dt and birth_dt > today:
+            errors.append("Birth date cannot be in the future.")
+        if death_dt and death_dt > today:
+            errors.append("Date of death cannot be in the future.")
+        if birth_dt and death_dt and death_dt < birth_dt:
+            errors.append("Date of death must be after birth date.")
+
+        # Duplicate author check by normalized name (case-insensitive)
+        if name and not errors:
+            existing = Author.query.filter(func.lower(Author.name) == name.lower()).first()
+            if existing:
+                errors.append("Author already exists.")
+
+        if errors:
+            message = "; ".join(errors)
         else:
-            author = Author(
-                name=name,
-                birth_date=birth_date or None,
-                date_of_death=date_of_death or None
-            )
-            db.session.add(author)
-            db.session.commit()
-            message = f'Author "{author.name}" added.'
+            try:
+                author = Author(
+                    name=name,
+                    birth_date=birth_dt if birth_dt else None,
+                    date_of_death=death_dt if death_dt else None,
+                )
+                db.session.add(author)
+                db.session.commit()
+                message = f'Author "{author.name}" added.'
+            except Exception as exc:
+                db.session.rollback()
+                message = f"Could not add author: {exc}"
 
     return render_template("add_author.html", message=message)
 
@@ -48,19 +86,66 @@ def add_book():
         publication_year = request.form.get("publication_year", "").strip()
         author_id = request.form.get("author_id", "").strip()
 
+        errors = []
         if not (title and isbn and author_id):
-            message = "Title, ISBN, and author are required."
-        else:
-            year_value = int(publication_year) if publication_year.isdigit() else None
-            book = Book(
-                title=title,
-                isbn=isbn,
-                publication_year=year_value,
-                author_id=int(author_id)
+            errors.append("Title, ISBN, and author are required.")
+
+        # Validate author exists
+        author_obj = None
+        if author_id:
+            try:
+                author_obj = Author.query.get(int(author_id))
+                if not author_obj:
+                    errors.append("Selected author does not exist.")
+            except Exception:
+                errors.append("Invalid author selection.")
+
+        # Basic ISBN validation (allow hyphens/spaces, require 10 or 13 digits)
+        def is_valid_isbn(raw: str) -> bool:
+            digits = "".join(ch for ch in raw if ch.isdigit())
+            return len(digits) in (10, 13)
+
+        if isbn and not is_valid_isbn(isbn):
+            errors.append("ISBN must contain 10 or 13 digits (hyphens/spaces allowed).")
+
+        # Publication year validation
+        year_value = None
+        if publication_year:
+            if publication_year.isdigit():
+                year_value = int(publication_year)
+                current_year = date.today().year
+                if year_value < 1450 or year_value > current_year:  # reasonable bounds
+                    errors.append("Publication year must be between 1450 and the current year.")
+            else:
+                errors.append("Publication year must be a number.")
+
+        # Prevent duplicate title for the same author (case-insensitive)
+        if title and author_obj:
+            duplicate = (
+                Book.query
+                .filter(Book.author_id == author_obj.id)
+                .filter(func.lower(Book.title) == title.lower())
+                .first()
             )
-            db.session.add(book)
-            db.session.commit()
-            message = f'Book "{book.title}" added.'
+            if duplicate:
+                errors.append("This author already has a book with that title.")
+
+        if errors:
+            message = "; ".join(errors)
+        else:
+            try:
+                book = Book(
+                    title=title,
+                    isbn=isbn,
+                    publication_year=year_value,
+                    author_id=author_obj.id if author_obj else int(author_id),
+                )
+                db.session.add(book)
+                db.session.commit()
+                message = f'Book "{book.title}" added.'
+            except Exception as exc:
+                db.session.rollback()
+                message = f"Could not add book: {exc}"
 
     return render_template("add_book.html", authors=authors, message=message)
 
@@ -68,13 +153,13 @@ def add_book():
 @app.route("/", methods=["GET"])
 def home():
     """List books with optional title search."""
-    q = request.args.get("q", "").strip()
+    search_query = request.args.get("q", "").strip()
     query = Book.query
-    if q:
-        query = query.filter(Book.title.ilike(f"%{q}%"))  # LIKE '%q%'
+    if search_query:
+        query = query.filter(Book.title.ilike(f"%{search_query}%"))
     books = query.all()
-    no_results = bool(q) and not books
-    return render_template("home.html", books=books, q=q, no_results=no_results)
+    no_results = bool(search_query) and not books
+    return render_template("home.html", books=books, q=search_query, no_results=no_results)
 
 
 # Route to delete a book and remove author if no books remain

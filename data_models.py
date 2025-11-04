@@ -6,11 +6,13 @@ db = SQLAlchemy()
 
 
 class Author(db.Model):
-    """Author entity with optional birth/death dates."""
+    """Represents an author, including their name and optional birth and death dates.
+    This model stores information about an author and is linked to the Book model
+    in a one-to-many relationship."""
     __tablename__ = "author"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), unique=True, nullable=False)
     birth_date = db.Column(db.String(20))
     date_of_death = db.Column(db.String(20))
 
@@ -24,7 +26,9 @@ class Author(db.Model):
 
 
 class Book(db.Model):
-    """Book entity linked to an Author via foreign key."""
+    """Represents a book with title, ISBN, and optional publication year.
+    Each book is associated with one author through a foreign key relationship,
+    enabling bidirectional access between authors and their books."""
     __tablename__ = "book"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
